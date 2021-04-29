@@ -1,2 +1,4 @@
 *.log*
 .nextflow
+tiny
+work
