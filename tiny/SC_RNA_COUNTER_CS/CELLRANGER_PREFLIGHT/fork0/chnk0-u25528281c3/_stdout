@@ -1,0 +1,19 @@
+[stdout]
+Checking sample info...
+Checking FASTQ folder...
+Checking reference...
+Checking reference_path (/home/histogenex/cellranger-6.0.1/external/cellranger_tiny_ref/3.0.0) on hgx-srv-ml.histogenex.local...
+Checking system environment...
+Checking optional arguments...
+mrc: v4.0.4
+
+mrp: v4.0.4
+
+Anaconda: Python 3.7.6
+
+numpy: 1.19.2
+
+scipy: 1.1.0
+
+2021-04-23 10:13:58 Caught signal interrupt
+2021-04-23 10:13:58 [monitor] Caught signal interrupt

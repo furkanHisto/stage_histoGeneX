@@ -1,0 +1,5 @@
+2021-04-23 10:13:55 [time] __start__
+2021-04-23 10:13:55 [monitor] cgroup memory limit of 9223372036854771712 bytes detected
+2021-04-23 10:13:58 Caught signal interrupt
+2021-04-23 10:13:58 [monitor] Caught signal interrupt
+2021-04-23 10:13:58 [time] __end__

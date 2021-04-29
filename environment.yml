@@ -1,0 +1,37 @@
+# You can use this file to create a conda environment for this pipeline:
+#   conda env create -f environment.yml
+name: hgx-rnaseq-1.0
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  ## conda-forge packages, sorting now alphabetically, without the channel prefix!
+  - matplotlib=3.0.3        # Current 3.1.0 build incompatible with multiqc=1.7
+  - conda-forge::r-base=3.6.1
+  - conda-forge::r-data.table=1.12.4
+  - conda-forge::r-gplots=3.0.1.1
+  - conda-forge::r-markdown=1.1
+
+
+  ## bioconda packages, see above
+  - arriba=1.2.0 # updated
+  - bioconductor-dupradar=1.14.0
+  - bioconductor-edger=3.26.5 # updated
+  - bioconductor-tximeta=1.4.0 # updated
+  - bioconductor-summarizedexperiment=1.16.0 # updated
+  - bioconductor-rhdf5=2.30.0 # needed for kallisto
+  - fastqc=0.11.8  
+  - gffread=0.11.4
+#  - htslib=1.9
+  - kallisto=0.46.1 # updated
+  - multiqc=1.8 # updated
+#  - openssl=1.0
+  - picard=2.21.6 # updated
+  - preseq=2.0.3
+  - rseqc=3.0.1
+  - samtools=1.9 # updated
+  - sortmerna=2.1b # metatranscriptomics
+  - star=2.7.3a             # Updated
+  - subread=1.6.4 # no updates on bioconda - check later
+  - trim-galore=0.6.5 # updated

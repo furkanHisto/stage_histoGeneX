@@ -1,0 +1,140 @@
+{
+    "name": "ID.tiny.SC_RNA_COUNTER_CS.CELLRANGER_PREFLIGHT_LOCAL.fork0.chnk0",
+    "pid": 9573,
+    "host": "hgx-srv-ml.histogenex.local",
+    "type": "local",
+    "cwd": "/home/histogenex/Pipelines/Nextflow/scRNAseq/tiny/SC_RNA_COUNTER_CS/CELLRANGER_PREFLIGHT_LOCAL/fork0/chnk0-u25528281c3/files",
+    "python": {
+        "binpath": "/home/histogenex/cellranger-6.0.1/external/anaconda/bin/python",
+        "version": "3.7.6 (default, Jan  8 2020, 19:59:22) \n[GCC 7.3.0]"
+    },
+    "rusage": {
+        "self": {
+            "ru_maxrss": 22260,
+            "ru_ixrss": 0,
+            "ru_idrss": 0,
+            "ru_minflt": 714,
+            "ru_majflt": 0,
+            "ru_nswap": 0,
+            "ru_utime": 0.005699,
+            "ru_stime": 0.005699,
+            "ru_inblock": 0,
+            "ru_oublock": 40,
+            "ru_msgsnd": 0,
+            "ru_msgrcv": 0,
+            "ru_nsignals": 0,
+            "ru_nivcsw": 2
+        },
+        "children": {
+            "ru_maxrss": 80804,
+            "ru_ixrss": 0,
+            "ru_idrss": 0,
+            "ru_minflt": 78218,
+            "ru_majflt": 3,
+            "ru_nswap": 0,
+            "ru_utime": 2.333183,
+            "ru_stime": 0.371606,
+            "ru_inblock": 0,
+            "ru_oublock": 21320,
+            "ru_msgsnd": 0,
+            "ru_msgrcv": 0,
+            "ru_nsignals": 0,
+            "ru_nivcsw": 59
+        }
+    },
+    "used_bytes": {
+        "rss": 22794240,
+        "shared": 1671168,
+        "vmem": 845672448,
+        "text": 2547712,
+        "stack": 836513792,
+        "proc_count": 1
+    },
+    "io": {
+        "total": {
+            "read": {
+                "sysc": 6,
+                "bytes": 0
+            },
+            "write": {
+                "sysc": 0,
+                "bytes": 0
+            }
+        },
+        "max": {
+            "read": {
+                "sysc": 2262.0817787804663,
+                "bytes": 0
+            },
+            "write": {
+                "sysc": 0,
+                "bytes": 0
+            }
+        },
+        "dev": {
+            "read": {
+                "sysc": 0,
+                "bytes": 0
+            },
+            "write": {
+                "sysc": 0,
+                "bytes": 0
+            }
+        }
+    },
+    "wallclock": {
+        "start": "2021-04-23 10:13:55",
+        "end": "2021-04-23 10:13:58",
+        "duration_seconds": 2.711780087
+    },
+    "threads": 1,
+    "memGB": 8,
+    "vmemGB": 11,
+    "profile_mode": "disable",
+    "stackvars_flag": "disable",
+    "monitor_flag": "disable",
+    "invocation": {
+        "call": "SC_RNA_COUNTER_CS",
+        "args": {
+            "chemistry": "SC3Pv3",
+            "feature_reference": null,
+            "force_cells": null,
+            "include_introns": false,
+            "no_bam": false,
+            "no_secondary_analysis": false,
+            "no_target_umi_filter": false,
+            "r1_length": null,
+            "r2_length": null,
+            "recovered_cells": null,
+            "reference_path": "/home/histogenex/cellranger-6.0.1/external/cellranger_tiny_ref/3.0.0",
+            "sample_def": [
+                {
+                    "fastq_id": null,
+                    "fastq_mode": "ILMN_BCL2FASTQ",
+                    "gem_group": null,
+                    "lanes": null,
+                    "library_type": "Gene Expression",
+                    "read_path": "/home/histogenex/cellranger-6.0.1/external/cellranger_tiny_fastq",
+                    "sample_indices": [
+                        "any"
+                    ],
+                    "sample_names": [
+                        "tinygex"
+                    ],
+                    "subsample_rate": null,
+                    "target_set": null,
+                    "target_set_name": null
+                }
+            ],
+            "sample_desc": "",
+            "sample_id": "tiny",
+            "trim_polya_min_score": null,
+            "trim_tso_min_score": null
+        },
+        "mro_file": "rna/sc_rna_counter_cs.mro"
+    },
+    "version": {
+        "martian": "v4.0.4",
+        "pipelines": "cellranger-6.0.1"
+    }
+}
