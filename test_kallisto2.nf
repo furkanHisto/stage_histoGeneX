@@ -4,50 +4,47 @@
 kallisto_index = Channel.fromPath(params.kallisto_index)
                         .ifEmpty { exit 1, "Index not found: ${params.kallisto_index}" }
 
-// this method is not good. that's why it's in comment                            
-// kallisto_sampleChannel = Channel.fromPath("${params.fastq_dir}/*.gz")
-//                                .map{                                
-//                                     Path path ->
-//                                     path.toFile()
-//                                     .getAbsolutePath()              // wih this the absolute path of the file is given. because kallisto quant needs the paths of the file, we add this
-//                                } 
-//                                .collate(2)                          // with collate the emitted values are grouped in tuples. the 2 indicates how many values are combined into a tuple. 
 
 
 //channel to read the sample files
-Channel.fromFilePairs(params.input).view()
+Channel.fromFilePairs(params.input)                                                     // the files emited are collected in pairs into a tuple. 
         .ifEmpty {exit 1, "params.input_paths was empty - no input files supplied" }
-        .map {tag, pair -> 
-                subtags = (tag =~ /sample\d{1}/) [0];
-                tuple ( subtags, pair )
+        .map {tag, pair ->                                                              // each sample occurs twice. this needs to change to 1.  a tag opperator is used to group the samples
+                subtags = (tag =~ /sample\d{1}/);                                       // first you write a pattern to match folowed by \d to specify a wild card.
+                tuple ( subtags[0] ,pair )                                              //here you specify how the tuple is ordered. you put the matching string tag as the first value in the tuple
         }
+        .groupTuple(by:[0])                                                             // you then sort by tuple. you can specify by which tuple value you want to sort. because we specified in the earlier step that sample\d is the first one, it will sort by sample by default.
+        .set { read_files_kallisto}
         
-        .groupTuple(by:0).view()
 
-        // .map {tag, pair -> 
-        //         subtags = (tag =~ /L00\d{1}/) [0];
-        //         tuple [subtags[1], pair]
-        // }
-        // .groupTuple(by:0).view()
+process prep {
+        input:
+        set val(name), file(reads) from read_files_kallisto
+        output:
+        set val(name), file(reads)) into preprocess
 
-        // .set { read_files_kallisto}
-
-
-             
-
-/*
-process kallisto_bus {
-    tag "${name}"
-
-    input: 
-    set val(name), file(reads) from read_files_kallisto
-    file index from kallisto_index.collect()
-
-    """
-    kallisto bus  -i $index \
-                    --output=/home/histogenex/test_kallisto/test1/${name} \
-                    -x '10xv3' -t ${task.cpus} \
-                    $reads | tee ${name}_kallisto.log
-    """
+        
+        """
+        cat  ${reads}
+        echo ${reads}
+        """
 }
-*/
+
+preprocess.view()
+
+// process kallisto_bus {
+//     tag "${name}"
+
+//     input: 
+// //     set val(name), file(reads) from read_files_kallisto
+//     tuple val(name), file (reads) from preprocess
+//     file index from kallisto_index.collect()
+
+
+//     """
+//     kallisto bus  -i $index \
+//                     --output=/home/histogenex/test_kallisto/test1/${name} \
+//                     -x '10xv3' -t ${task.cpus} \
+//                     ${reads} | tee ${name}_kallisto.log
+//     """
+// }
