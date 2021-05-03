@@ -1,5 +1,6 @@
 #!/usr/bin/env nextflow
 
+
 //creating channel to get the kallisto index file
 kallisto_index = Channel.fromPath(params.kallisto_index)
                         .ifEmpty { exit 1, "Index not found: ${params.kallisto_index}" }
@@ -13,38 +14,32 @@ Channel.fromFilePairs(params.input)                                             
                 subtags = (tag =~ /sample\d{1}/);                                       // first you write a pattern to match folowed by \d to specify a wild card.
                 tuple ( subtags[0] ,pair )                                              //here you specify how the tuple is ordered. you put the matching string tag as the first value in the tuple
         }
-        .groupTuple(by:[0])                                                             // you then sort by tuple. you can specify by which tuple value you want to sort. because we specified in the earlier step that sample\d is the first one, it will sort by sample by default.
-        .set { read_files_kallisto}
+        .groupTuple(by:[0])                                                        // you then sort by tuple. you can specify by which tuple value you want to sort. because we specified in the earlier step that sample\d is the first one, it will sort by sample by default.
+        .map{sample, file ->
+                tuple(sample, file[0],file[1])
+        }
+        .set {read_files_kallisto}
+
+        
         
 
-process prep {
+
+
+process kallisto{
+        tag "${name}"
         input:
-        set val(name), file(reads) from read_files_kallisto
+        tuple val (name), file (read1), file (read2) from read_files_kallisto
+        file index from kallisto_index.collect()
         output:
-        set val(name), file(reads)) into preprocess
 
-        
-        """
-        cat  ${reads}
-        echo ${reads}
+
+         """
+         kallisto bus  -i $index \
+                       --output=/home/histogenex/test_kallisto/test2/${name} \
+                       -x '10xv2' -t ${task.cpus} \
+                       ${read1} ${read2} | tee ${name}_kallisto.log
         """
 }
 
-preprocess.view()
-
-// process kallisto_bus {
-//     tag "${name}"
-
-//     input: 
-// //     set val(name), file(reads) from read_files_kallisto
-//     tuple val(name), file (reads) from preprocess
-//     file index from kallisto_index.collect()
 
 
-//     """
-//     kallisto bus  -i $index \
-//                     --output=/home/histogenex/test_kallisto/test1/${name} \
-//                     -x '10xv3' -t ${task.cpus} \
-//                     ${reads} | tee ${name}_kallisto.log
-//     """
-// }
