@@ -1,17 +1,23 @@
 #!/usr/bin/env nextflow
 
 Channel.fromPath(params.bustools).view()
-    .set {output_bus}
+    .set {output_kbus}
+
+
+whitelist = Channel.fromPath(params.whitelist)
 
 process bustools_correct{
+
+    publishDir "${params.outdir}/correct/", mode = 'copy'
+
     input:
-    file busfile from output_bus
-    file whitelist from params.whitelist
+    file (busfile) from output_kbus
+    file whitelist from whitelist.first()
 
     script:
     """
     bustools correct -w ${whitelist} \
-    -o /home/histogenex/bustools/correct/${busfile} \
+    -o ./output.bus \
     ${busfile}
     """
 }
