@@ -27,15 +27,19 @@ Channel.fromFilePairs(params.input)                                             
 
 process kallisto{
         tag "${name}"
+
+        publishDir "/home/histogenex/test_kallisto/test3/", mode = 'copy'
+
         input:
         tuple val (name), file (read1), file (read2) from read_files_kallisto
         file index from kallisto_index.collect()
-        output:
 
+        output:
+        file "${name}/*.bus" into output_bus
 
          """
          kallisto bus  -i $index \
-                       --output=/home/histogenex/test_kallisto/test2/${name} \
+                       --output=/home/histogenex/test_kallisto/test3/${name} \
                        -x '10xv2' -t ${task.cpus} \
                        ${read1} ${read2} | tee ${name}_kallisto.log
         """
