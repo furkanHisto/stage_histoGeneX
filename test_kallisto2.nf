@@ -8,7 +8,7 @@ kallisto_index = Channel.fromPath(params.kallisto_index)
 
 
 //channel to read the sample files
-Channel.fromFilePairs(params.input)                                                     // the files emited are collected in pairs into a tuple. 
+Channel .fromFilePairs(params.input)                                                     // the files emited are collected in pairs into a tuple. 
         .ifEmpty {exit 1, "params.input_paths was empty - no input files supplied" }
         .map {tag, pair ->                                                              // each sample occurs twice. this needs to change to 1.  a tag opperator is used to group the samples
                 subtags = (tag =~ /sample\d{1}/);                                       // first you write a pattern to match folowed by \d to specify a wild card.
@@ -26,9 +26,10 @@ Channel.fromFilePairs(params.input)                                             
 
 
 process kallisto{
+        
         tag "${name}"
 
-        publishDir "${params.outdir}/kallisto/", mode = 'copy'
+        publishDir "${params.outdir}/kallisto/raw_bus", mode: 'copy'
 
         input:
         tuple val (name), file (read1), file (read2) from read_files_kallisto
@@ -37,17 +38,37 @@ process kallisto{
 
 
         output:
-        file "*.bus" into output_bus
+        file "${name}_bus_output" into kallisto_bus_to_sort
 
         
 
          """
          kallisto bus  -i $index \
-                       --output=. \
+                       --output=${name}_bus_output/ \
                        -x '10xv2' -t ${task.cpus} \
                        ${read1} ${read2} | tee ${name}_kallisto.log
         """
 }
 
+whitelist = Channel.fromPath(params.whitelist)
 
+process bustools_correct{
 
+    tag "$bus"
+
+    publishDir "${params.outdir}/kallisto/sort_bus", mode : 'copy'
+
+    input:
+    file bus from kallisto_bus_to_sort
+    file whitelist from whitelist.collect()
+
+    output:
+    file bus into corrected_to_bus
+
+    script:
+    """
+    bustools correct -w ${whitelist} \
+    -o ${bus}/output.corrected.bus \
+    ${bus}/output.bus
+    """
+}
