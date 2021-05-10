@@ -1,23 +1,24 @@
 #!/usr/bin/env nextflow
 
-Channel.fromPath(params.bustools).view()
-    .set {output_kbus}
+bus_correct = Channel.fromPath(params.outdir2).view()
+
 
 
 whitelist = Channel.fromPath(params.whitelist)
 
 process bustools_correct{
+    tag "$bus"
 
-    publishDir "${params.outdir}/correct/", mode = 'copy'
+    publishDir "${params.outdir}/kallisto/sort_bus", mode = 'copy'
 
     input:
-    file (busfile) from output_kbus
-    file whitelist from whitelist.first()
+    file bus from bus_correct
+    file whitelist from whitelist.collect()
 
     script:
     """
-    bustools correct -w ${whitelist} \
-    -o ./output.bus \
-    ${busfile}
+    bustools correct    -w ${whitelist} \
+                        -o ${bus}/output.corrected.bus \
+                        ${bus}
     """
 }
