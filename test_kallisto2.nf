@@ -25,7 +25,35 @@ Channel .fromFilePairs(params.input)                                            
         .set {read_files_kallisto}
 
         
-        
+// process for creating a FASTQC and a MultiQC report of the samples.
+
+process fastqc{
+
+    tag "${sample}"
+
+    publishDir "${params.outdir}/fastqc", mode : 'copy' 
+
+    input:
+    file sample from samples_fastqc
+
+    output:
+    file "${sample}"
+
+    script:
+    """
+    mkdir -p ${params.outdir}/fastqc \
+
+    fastqc --extract \
+            -o ${params.outdir}/fastqc \
+            ${sample} \
+    
+    multiqc ${params.outdir}/fastqc
+    """  
+
+}
+
+
+
 // process for the kallisto bus command. this will create a matrix.ec file, a transcript.txt file and a output.bus file. it counts all the transcripts.
 
 process kallisto_bus{
@@ -140,7 +168,7 @@ process gene_map{
     
     shell:
     '''
-    zless -S /mnt/storage/Reference/GENCODE/v32/GTF/gencode.v32.primary_assembly.annotation.gtf | grep -v "#" | \
+    zless -S !{gtf} | grep -v "#" | \
     awk '$3 =="transcript"' | cut -f9 | tr -s ";" " " | awk '{print$4"\t"$2}' | sort \
     | uniq |  sed 's/\"//g' | tee transcript_to_gene.txt
     '''
