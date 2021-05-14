@@ -1,47 +1,48 @@
 #!/usr/bin/env nextflow
 
-// samples_fastqc = Channel.fromPath(params.input)
+samples_fastqc = Channel.fromPath(params.input)
 
-sample_multiqc = Channel.fromPath(params.sample_multiqc).view()
 
+
+
+
+
+process fastqc{
+
+    tag "${sample}"
+
+    publishDir "${params.outdir}/fastqc", mode : 'copy' 
+
+    input:
+    file sample from samples_fastqc
+
+    output:
+    file "*_fastqc*" into fastqc_to_multicq
+
+    script:
+    """
+    mkdir -p ${params.outdir}/fastqc \
+
+    fastqc  ${sample} \
+    
+    """  
+
+}
 
 process MultiQC {
 
     publishDir "${params.outdir}/multiqc", mode : 'copy'
 
     input:
-    file sample from sample_multiqc    
+    file ('fastqc/*') from fastqc_to_multicq.collect().ifEmpty([])
 
     output:
-    file "${sample}"
+    file "multiqc_report.html"
+    file "multiqc_data"
 
     """
-    multiqc . \
+    multiqc -f . \
     
     """
 }
-
-// process fastqc{
-
-//     tag "${sample}"
-
-//     publishDir "${params.outdir}/fastqc", mode : 'copy' 
-
-//     input:
-//     file sample from samples_fastqc
-
-//     output:
-//     file "${sample}"
-
-//     script:
-//     """
-//     mkdir -p ${params.outdir}/fastqc \
-
-//     fastqc --extract \
-//             -o ${params.outdir}/fastqc \
-//             ${sample} \
-    
-//     """  
-
-// }
 
