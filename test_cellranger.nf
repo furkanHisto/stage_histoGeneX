@@ -6,12 +6,12 @@ transcriptome_reference = Channel
 
 
 
-fastqdir_channel = Channel
-                          .fromPath(params.fastq_dir)
-                          .ifEmpty { exit 1, "Samples not found: ${params.fasq_dir}" }
+fastqdir = Channel.fromPath(params.input_cellranger)
+                  .ifEmpty { exit 1, "Samples not found: ${params.input_cellranger}" }
 
 
-sampleChannel = Channel.fromPath("${params.fastq_dir}/*.gz")
+sampleChannel = Channel.fromPath("${params.input_cellranger}/*.gz")
+  .ifEmpty { exit 1, "Samples not found: ${params.input_cellranger}" }
   .map { Path path -> 
     path.toFile()
         .getSimpleName()                                       // this returns the name without the extension
@@ -23,16 +23,18 @@ sampleChannel = Channel.fromPath("${params.fastq_dir}/*.gz")
 
 process CellRangerCount {
 
-  publishDir '${params.outdir}/cellrangercount',  mode: 'copy'       // this is added to specify the directory of the output of the run.
+  publishDir "${params.outdir}/cellrangercount",  mode: 'copy'       // this is added to specify the directory of the output of the run.
 
-  //label "mid_memory"     // this looks in the hgx.config file for this label. this label sets the configuration of all the processes to set values.
+  label "mid_memory"     // this looks in the hgx.config file for this label. this label sets the configuration of all the processes to set values.
   tag "$sample"         // this is added to check wich sample is currently running when executing nextflow.
 
   input:
   val sample from sampleChannel      // we take the values generated from the samplechannel. these are the file names 'GEM_sample*' 
-  file fastq_dir from fastqdir_channel.first()              // we add .first because that channel only outputs 1 file while the samplechannel outputs 4. when there is no .first() then the run will stop at 1 file because the fastq_dir channel only outputs 1 file. 
+  file fastq_dir from fastqdir.first()              // we add .first because that channel only outputs 1 file while the samplechannel outputs 4. when there is no .first() then the run will stop at 1 file because the fastq_dir channel only outputs 1 file. 
   file tx_reference from transcriptome_reference.first()    // .first takes the first output file and reuses it. so the only output of these channels is reuses 4 times to match the amount of samplechannel output.
   
+  output:
+  file sample
   
 
   //the --id is = to --sample. this way the dir that is being created is the same as the sample name for each sample.

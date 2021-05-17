@@ -9,10 +9,13 @@ whitelist = Channel.fromPath(params.whitelist)
 
 gtf_gene_map = Channel.fromPath(params.gtf_gene_map)
 
+samples_fastqc = Channel.fromPath("${params.input_kallisto}")
+
+
 
 
 //channel to read the sample files
-Channel .fromFilePairs(params.input)                                                     // the files emited are collected in pairs into a tuple. 
+Channel .fromFilePairs(params.input_kallisto)                                                     // the files emited are collected in pairs into a tuple. 
         .ifEmpty {exit 1, "params.input_paths was empty - no input files supplied" }
         .map {tag, pair ->                                                              // each sample occurs twice. this needs to change to 1.  a tag opperator is used to group the samples
                 subtags = (tag =~ /sample\d{1}/);                                       // first you write a pattern to match folowed by \d to specify a wild card.
@@ -23,40 +26,15 @@ Channel .fromFilePairs(params.input)                                            
                 tuple(sample, file[0],file[1])
         }
         .set {read_files_kallisto}
-
         
-// process for creating a FASTQC and a MultiQC report of the samples.
-
-process fastqc{
-
-    tag "${sample}"
-
-    publishDir "${params.outdir}/fastqc", mode : 'copy' 
-
-    input:
-    file sample from samples_fastqc
-
-    output:
-    file "${sample}"
-
-    script:
-    """
-    mkdir -p ${params.outdir}/fastqc \
-
-    fastqc --extract \
-            -o ${params.outdir}/fastqc \
-            ${sample} \
-    
-    multiqc ${params.outdir}/fastqc
-    """  
-
-}
 
 
 
 // process for the kallisto bus command. this will create a matrix.ec file, a transcript.txt file and a output.bus file. it counts all the transcripts.
 
 process kallisto_bus{
+
+        label 'mid_memory'
         
         tag "${name}"
 
@@ -70,6 +48,7 @@ process kallisto_bus{
 
         output:
         file "${name}_bus_output" into kallisto_bus_to_correct
+        file "${name}_kallisto.log" into kallisto_logs
 
         
 
@@ -77,7 +56,7 @@ process kallisto_bus{
          kallisto bus  -i $index \
                        --output=${name}_bus_output/ \
                        -x '10xv2' -t ${task.cpus} \
-                       ${read1} ${read2} | tee ${name}_kallisto.log
+                       ${read1} ${read2} 2>&1 | tee ${name}_kallisto.log
         """
 }
 
@@ -86,68 +65,72 @@ process kallisto_bus{
 
 process bustools_correct{
 
-    tag "$bus"
+        label 'mid_memory'
 
-    publishDir "${params.outdir}/kallisto/raw_bus", mode : 'copy'
+        tag "$bus"
 
-    input:
-    file bus from kallisto_bus_to_correct
-    file whitelist from whitelist.collect()
+        publishDir "${params.outdir}/kallisto/raw_bus", mode : 'copy'
 
-    output:
-    file bus into corrected_to_sort
+        input:
+        file bus from kallisto_bus_to_correct
+        file whitelist from whitelist.collect()
 
-    script:
-    """
-    bustools correct    -w ${whitelist} \
-                        -o ${bus}/output.corrected.bus \
-                        ${bus}/output.bus
-    """
+        output:
+        file bus into corrected_to_sort
+
+        script:
+        """
+        bustools correct    -w ${whitelist} \
+                                -o ${bus}/output.corrected.bus \
+                                ${bus}/output.bus
+        """
 }
 
 
 // proces for bustools sort command. this will sort the bus files so that the downwards processes can be executed faster.
 process bustools_sort{
 
-    tag "${sort}"
+        label 'mid_memory'
 
-    publishDir "${params.outdir}/kallisto/raw_bus", mode : 'copy'
-    
-    input:
-    file sort from corrected_to_sort
+        tag "${sort}"
 
-    output:
-    file sort into sort_to_count
-    file sort into sort_to_inspect
+        publishDir "${params.outdir}/kallisto/raw_bus", mode : 'copy'
+        
+        input:
+        file sort from corrected_to_sort
+
+        output:
+        file sort into sort_to_count
+        file sort into sort_to_inspect
 
 
-    script:
-    """
-    bustools sort       -t ${task.cpus} \
-                        -o ${sort}/output.corrected.sorted.bus \
-                        -m ${task.memory.toGiga()} \
-                        ${sort}/output.corrected.bus
-    """
+        script:
+        """
+        bustools sort       -t ${task.cpus} \
+                                -o ${sort}/output.corrected.sorted.bus \
+                                -m ${task.memory.toGiga()} \
+                                ${sort}/output.corrected.bus
+        """
 }
 
 // process of the Bustools inspect command. this will create a sumary file of the bus files in json format.
 process bustools_inspect{
 
-    tag "${inspect}"
+        tag "${inspect}"
 
-    publishDir "${params.outdir}/kallisto/inspect", mode : 'copy'
-    
-    input:
-    file inspect from sort_to_inspect
+        publishDir "${params.outdir}/kallisto/inspect", mode : 'copy'
+        
+        input:
+        file inspect from sort_to_inspect
 
-    output:
-    file "${inspect}.json"
+        output:
+        file "${inspect}.json"
 
-    script:
-    """
-    bustools inspect    -o ${inspect}.json \
-                        ${inspect}/output.corrected.sorted.bus
-    """
+        script:
+        """
+        bustools inspect    -o ${inspect}.json \
+                                ${inspect}/output.corrected.sorted.bus
+        """
 }
 
 
@@ -156,25 +139,26 @@ process bustools_inspect{
 // process to make a gene map from the GTF file from the reference genome v32.
 process gene_map{
 
-    tag "$gtf"
+        tag "$gtf"
 
-    publishDir "${params.outdir}/kallisto/gene_map", mode : 'copy'
+        publishDir "${params.outdir}/kallisto/gene_map", mode : 'copy'
 
-    input:
-    file gtf from gtf_gene_map
+        input:
+        file gtf from gtf_gene_map
 
-    output:
-    file "transcript_to_gene.txt" into kallisto_gene_map
-    
-    shell:
-    '''
-    zless -S !{gtf} | grep -v "#" | \
-    awk '$3 =="transcript"' | cut -f9 | tr -s ";" " " | awk '{print$4"\t"$2}' | sort \
-    | uniq |  sed 's/\"//g' | tee transcript_to_gene.txt
-    '''
+        output:
+        file "transcript_to_gene.txt" into kallisto_gene_map
+        
+        shell:
+        '''
+        zless -S !{gtf} | grep -v "#" | \
+        awk '$3 =="transcript"' | cut -f9 | tr -s ";" " " | awk '{print$4"\t"$2}' | sort \
+        | uniq |  sed 's/\"//g' | tee transcript_to_gene.txt
+        '''
 }
 
 process bustools_count {
+
         tag "$bus"
 
         publishDir "${params.outdir}/kallisto/count", mode : 'copy'
@@ -196,4 +180,47 @@ process bustools_count {
                         ${bus}/output.corrected.sorted.bus
         """
         
+}
+
+
+// process for creating a FASTQC and a MultiQC report of the samples.
+process fastqc{
+
+        tag "${sample}"
+
+        publishDir "${params.outdir}/fastqc", mode : 'copy' 
+
+        input:
+        file sample from samples_fastqc
+
+        output:
+        file "*_fastqc*" into fastqc_to_multicq
+
+        script:
+        """
+       
+
+        fastqc  ${sample} \
+        
+        """  
+
+}
+
+
+process MultiQC {
+
+        publishDir "${params.outdir}/multiqc", mode : 'copy'
+
+        input:
+        file ('fastqc/*') from fastqc_to_multicq.collect().ifEmpty([])
+        // file ('kallisto.log') from kallisto_logs.collect().ifEmpty([])
+
+        output:
+        file "multiqc_report.html"
+        file "multiqc_data"
+
+        """
+        multiqc -f -m kallisto . 
+        
+        """ 
 }
