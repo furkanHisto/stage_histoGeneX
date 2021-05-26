@@ -1,7 +1,12 @@
-install.packages("Seurat")
+#!/usr/bin/env Rscript 
+
+#install.packages("Seurat", repos = "https://satijalab.org/seurat")
 library(Seurat)
-install.packages("optparse")
+#if (!require(optparse)) install.packages("optparse",repos="http://cran.rstudio.com/",quiet=TRUE)
 library(optparse)
+
+
+
 
 # to gather the input files from the channel. 
 #with make option you can write a shebang script on the file. we use this to gather the files emitted from the channel and run the script on it
@@ -12,7 +17,7 @@ opt=parse_args(OptionParser(option_list=option_list))
 rm(option_list)
 
 #loading data
-data_dir <- Read10X(data.dir = "opt/")
+data_dir <- Read10X(data.dir = "filtered/")
 dim(data_dir)
 #create seurat object of the data
 data <-  CreateSeuratObject(counts = data_dir)
@@ -37,4 +42,4 @@ nrow(x = data)
 data[[]]
 
 #saving object into a file
-saveRDS(data, file = "sample1.rds")
+saveRDS(data,paste0(opt$sample,".rds"))
