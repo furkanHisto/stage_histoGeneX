@@ -195,10 +195,18 @@ process bustools_count {
         script:
         """
         mkdir -p ${bus}_count
+        mkdir -p ${bus}_genecount
         bustools count  -o ${bus}_count/tcc \
                         -g ${gene_map} \
                         -e ${bus}/matrix.ec \
                         -t ${bus}/transcripts.txt \
+                        ${bus}/output.corrected.sorted.bus
+        
+        bustools count  -o ${bus}_count/tcc \
+                        -g ${gene_map} \
+                        -e ${bus}/matrix.ec \
+                        -t ${bus}/transcripts.txt \
+                        --genecounts \
                         ${bus}/output.corrected.sorted.bus
         """
         
@@ -253,27 +261,49 @@ process CellRangerCount {
   publishDir "${params.outdir}/cellrangercount",  mode: 'copy'       // this is added to specify the directory of the output of the run.
 
   label "mid_memory"     // this looks in the hgx.config file for this label. this label sets the configuration of all the processes to set values.
-  tag "$sample"         // this is added to check wich sample is currently running when executing nextflow.
+  tag "$sample_name"         // this is added to check wich sample is currently running when executing nextflow.
 
   input:
-  val sample from sampleChannel      // we take the values generated from the samplechannel. these are the file names 'GEM_sample*' 
+  val sample_name from sampleChannel      // we take the values generated from the samplechannel. these are the file names 'GEM_sample*' 
   file fastq_dir from fastqdir.first()              // we add .first because that channel only outputs 1 file while the samplechannel outputs 4. when there is no .first() then the run will stop at 1 file because the fastq_dir channel only outputs 1 file. 
   file tx_reference from transcriptome_reference.first()    // .first takes the first output file and reuses it. so the only output of these channels is reuses 4 times to match the amount of samplechannel output.
   
   output:
-  file sample
+  file sample_name
+  set val(sample_name), file("${sample_name}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz"), file("${sample_name}/outs/filtered_feature_bc_matrix/features.tsv.gz") , file("${sample_name}/outs/filtered_feature_bc_matrix/matrix.mtx.gz")  into cellranger_for_seurat
+  
   
 
   //the --id is = to --sample. this way the dir that is being created is the same as the sample name for each sample.
   //the localmem and cores specifies how much memory and cpu the task can use
   """
   cellranger count \
-  --id=${sample} \
+  --id=${sample_name} \
   --transcriptome=${tx_reference} \
   --fastqs=${fastq_dir} \
-  --sample=${sample} \
+  --sample=${sample_name} \
   --localcores ${task.cpus} \
   --localmem ${task.memory.toGiga()}
 
   """
+}
+
+//process for creating a seurat object for the cellranger count files
+
+
+process seurat_object {
+    tag "${sample_name}"
+    publishDir "${params.outdir}/Seurat",  mode: 'copy' 
+
+    input:
+    set val(sample_name), file(cellranger_barcodes), file(cellranger_features), file(cellranger_matrix) from cellranger_for_seurat
+
+    output:
+    file "*.rds"
+
+    script:
+    """
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/cellranger_object_base_argparse.r  ${sample_name} 
+    """
+
 }
