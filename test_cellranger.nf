@@ -35,6 +35,9 @@ process CellRangerCount {
   
   output:
   file sample
+
+  set val(sample), file ("${sample}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz"),  file("${sample}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz") , file("${sample}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz")  into cellranger_for_seurat
+  
   
 
   //the --id is = to --sample. this way the dir that is being created is the same as the sample name for each sample.
@@ -49,4 +52,21 @@ process CellRangerCount {
   --localmem ${task.memory.toGiga()}
 
   """
+}
+
+process seurat_object {
+    tag "${sample}"
+    publishDir "${params.outdir}/Seurat",  mode: 'copy' 
+
+    input:
+    file (sample) from cellranger_for_seurat
+
+    output:
+    file "*.rds"
+
+    script:
+    """
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/cellranger_object.r --sample ${sample}
+    """
+
 }
