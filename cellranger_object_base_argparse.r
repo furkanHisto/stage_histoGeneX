@@ -13,6 +13,6 @@ sample<- args[1]
 print(paste0("Sample to process: ", sample))
 
 data <- Read10X(data.dir = ".")
-data <-  CreateSeuratObject(counts=data)
+data <-  CreateSeuratObject(counts=data, min.cells = 3, min.features = 200)
 
 saveRDS(data, paste0(sample, "_cellranger_seurat.rds"))
