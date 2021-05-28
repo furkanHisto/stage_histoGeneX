@@ -15,7 +15,7 @@ gtf_gene_map = Channel.fromPath(params.gtf_gene_map)
 
 
 //channel to read the sample files
-Channel .fromFilePairs(params.input_cellranger2).view()                                                     // the files emited are collected in pairs into a tuple. 
+Channel .fromFilePairs(params.input_kallisto2).view()                                                     // the files emited are collected in pairs into a tuple. 
         .ifEmpty {exit 1, "params.input_paths was empty - no input files supplied" }
         .map {tag, pair ->                                                              // each sample occurs twice. this needs to change to 1.  a tag opperator is used to group the samples
                 subtags = (tag =~ /sample\d{1}/);                                       // first you write a pattern to match folowed by \d to specify a wild card.
@@ -168,8 +168,8 @@ process bustools_count {
         file gene_map from kallisto_gene_map.collect()
 
         output:
-        file("${bus}_count")  into kallisto_for_seurat
-
+        set val("${bus}_count"), file("${bus}_count/tcc.mtx"), file("${bus}_count/tcc.ec.txt"), file("${bus}_count/tcc.barcodes.txt")  into kallisto_count_for_seurat
+        set val("${bus}_genecount"), file ("${bus}_genecount/gene.genes.txt"), file ("${bus}_genecount/gene.barcodes.txt"), file ("${bus}_genecount/gene.mtx") into kallisto_genecount_for_seurat
         script:
         """
         mkdir -p ${bus}_count
@@ -180,7 +180,7 @@ process bustools_count {
                         -t ${bus}/transcripts.txt \
                         ${bus}/output.corrected.sorted.bus
 
-        bustools count  -o ${bus}_count/tcc \
+        bustools count  -o ${bus}_genecount/gene \
                         -g ${gene_map} \
                         -e ${bus}/matrix.ec \
                         -t ${bus}/transcripts.txt \
@@ -191,19 +191,38 @@ process bustools_count {
 }
 
 
-process kallisto_seurat_object {
+process count_seurat_object {
     tag "${bus}"
     publishDir "${params.outdir}/Seurat2",  mode: 'copy' 
 
     input:
-    file (bus) from kallisto_for_seurat
-
+    set val (bus), file (mtx), file(barcodes), file(ec)   from kallisto_count_for_seurat
+    
     output:
     file "*.rds"
 
     script:
     """
-    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_kallisto.r   ${bus}
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_kallisto_count.r   ${bus} 
+    
+    """
+
+}
+
+process genecount_seurat_object {
+    tag "${bus2}"
+    publishDir "${params.outdir}/Seurat2",  mode: 'copy' 
+
+    input:
+    
+    set val (bus2), file (mtx), file(genes), file(barcodes)   from kallisto_genecount_for_seurat
+    output:
+    file "*.rds"
+
+    script:
+    """
+    
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_kallisto_genecount.r   ${bus2}
     """
 
 }
