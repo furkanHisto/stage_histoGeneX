@@ -190,8 +190,8 @@ process bustools_count {
         file gene_map from kallisto_gene_map.collect()
 
         output:
-        file "${bus}_count"
-
+        set val("${bus}_count"), file("${bus}_count/tcc.mtx"), file("${bus}_count/tcc.ec.txt"), file("${bus}_count/tcc.barcodes.txt")  into kallisto_count_for_seurat
+        set val("${bus}_genecount"), file ("${bus}_genecount/gene.genes.txt"), file ("${bus}_genecount/gene.barcodes.txt"), file ("${bus}_genecount/gene.mtx") into kallisto_genecount_for_seurat
         script:
         """
         mkdir -p ${bus}_count
@@ -201,8 +201,8 @@ process bustools_count {
                         -e ${bus}/matrix.ec \
                         -t ${bus}/transcripts.txt \
                         ${bus}/output.corrected.sorted.bus
-        
-        bustools count  -o ${bus}_count/tcc \
+
+        bustools count  -o ${bus}_genecount/gene \
                         -g ${gene_map} \
                         -e ${bus}/matrix.ec \
                         -t ${bus}/transcripts.txt \
@@ -214,44 +214,44 @@ process bustools_count {
 
 
 // process for creating a FASTQC and a MultiQC report of the samples.
-process fastqc{
+// process fastqc{
 
-        tag "${sample}"
+//         tag "${sample}"
 
-        publishDir "${params.outdir}/fastqc", mode : 'copy' 
+//         publishDir "${params.outdir}/fastqc", mode : 'copy' 
 
-        input:
-        file sample from samples_fastqc
+//         input:
+//         file sample from samples_fastqc
 
-        output:
-        file "*_fastqc*" into fastqc_to_multicq
+//         output:
+//         file "*_fastqc*" into fastqc_to_multicq
 
-        script:
-        """
-        fastqc  ${sample} \
+//         script:
+//         """
+//         fastqc  ${sample} \
         
-        """  
+//         """  
 
-}
+// }
 
 
-process MultiQC {
+// process MultiQC {
 
-        publishDir "${params.outdir}/multiqc", mode : 'copy'
+//         publishDir "${params.outdir}/multiqc", mode : 'copy'
 
-        input:
-        file ('fastqc/*') from fastqc_to_multicq.collect().ifEmpty([])
-        // file ('kallisto.log') from kallisto_logs.collect().ifEmpty([])
+//         input:
+//         file ('fastqc/*') from fastqc_to_multicq.collect().ifEmpty([])
+//         // file ('kallisto.log') from kallisto_logs.collect().ifEmpty([])
 
-        output:
-        file "multiqc_report.html"
-        file "multiqc_data"
+//         output:
+//         file "multiqc_report.html"
+//         file "multiqc_data"
 
-        """
-        multiqc -f  . 
+//         """
+//         multiqc -f  . 
         
-        """
-}
+//         """
+// }
 
 
 // process for cellranger count.
@@ -268,6 +268,7 @@ process CellRangerCount {
   file fastq_dir from fastqdir.first()              // we add .first because that channel only outputs 1 file while the samplechannel outputs 4. when there is no .first() then the run will stop at 1 file because the fastq_dir channel only outputs 1 file. 
   file tx_reference from transcriptome_reference.first()    // .first takes the first output file and reuses it. so the only output of these channels is reuses 4 times to match the amount of samplechannel output.
   
+  // you specify each file into the output channel. this way all the files are emitted into a tmp dir that nextflow uses. now you can specify in Rscript for getting the files as current dir.
   output:
   file sample_name
   set val(sample_name), file("${sample_name}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz"), file("${sample_name}/outs/filtered_feature_bc_matrix/features.tsv.gz") , file("${sample_name}/outs/filtered_feature_bc_matrix/matrix.mtx.gz")  into cellranger_for_seurat
@@ -291,10 +292,12 @@ process CellRangerCount {
 //process for creating a seurat object for the cellranger count files
 
 
-process seurat_object {
+process cellranger_seurat_object {
     tag "${sample_name}"
     publishDir "${params.outdir}/Seurat",  mode: 'copy' 
+    
 
+    // by specifying each file as a file emitted from process cellranger you can use current dir in Rscript for reading the files.
     input:
     set val(sample_name), file(cellranger_barcodes), file(cellranger_features), file(cellranger_matrix) from cellranger_for_seurat
 
@@ -304,6 +307,43 @@ process seurat_object {
     script:
     """
     Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/cellranger_object_base_argparse.r  ${sample_name} 
+    """
+
+}
+
+
+process count_seurat_object {
+    tag "${bus}"
+    publishDir "${params.outdir}/Seurat",  mode: 'copy' 
+
+    input:
+    set val (bus), file (mtx), file(barcodes), file(ec)   from kallisto_count_for_seurat
+    
+    output:
+    file "*.rds"
+
+    script:
+    """
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_kallisto_count.r   ${bus} 
+    
+    """
+
+}
+
+process genecount_seurat_object {
+    tag "${bus2}"
+    publishDir "${params.outdir}/Seurat",  mode: 'copy' 
+
+    input:
+    
+    set val (bus2), file (mtx), file(genes), file(barcodes)   from kallisto_genecount_for_seurat
+    output:
+    file "*.rds"
+
+    script:
+    """
+    
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_kallisto_genecount.r   ${bus2}
     """
 
 }
