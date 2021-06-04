@@ -37,18 +37,18 @@ dir.create(arg$output_dir)
 
 #loading data
 data_dir <- Read10X(data.dir = arg$feature_matrix)
-#dim(data_dir)
+dim(data_dir)
 #create seurat object of the data
 seurat <-  CreateSeuratObject(counts = data_dir)
 
 #testing multpile seurat commands on object
-#data <- NormalizeData(object = data)
-#data <- FindVariableFeatures(object = data)
-#data <- ScaleData(object = data)
-#data <- RunPCA(object = data)
-#data <- FindNeighbors(object = data)
-#data <- FindClusters(object = data)
-#data <- RunTSNE(object = data)
+data <- NormalizeData(object = data)
+data <- FindVariableFeatures(object = data)
+data <- ScaleData(object = data)
+data <- RunPCA(object = data)
+data <- FindNeighbors(object = data)
+data <- FindClusters(object = data)
+data <- RunTSNE(object = data)
 
 
 # Get cell and feature names, and total numbers
