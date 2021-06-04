@@ -9,19 +9,6 @@ transcriptome_reference = Channel.fromPath(params.transcriptome)
 fastqdir = Channel.fromPath(params.input_cellranger)
                   .ifEmpty { exit 1, "Samples not found: ${params.input_cellranger}" }
 
-
-//channel to get the sample files for cellranger count
-sampleChannel = Channel.fromPath("${params.input_cellranger}/*.gz")
-    .ifEmpty { exit 1, "Samples not found: ${params.input_cellranger}" }
-    .map { Path path -> 
-        path.toFile()
-            .getSimpleName()                                       // this returns the name without the extension
-            .replaceAll(/_S[1-4]_L00[1-2]_[IR][1-2]_001/, '')      // this replaces the first string with something else. we need to change a part of the file name so the cellranger count can recognize the file name
-    }
-    .unique()  //this makes it so that there are no duplicate files
-
-
-
 //channel to get the kallisto index file, the whitelist and the GTF file of the v32 reference genome
 kallisto_index = Channel.fromPath(params.kallisto_index)
                         .ifEmpty { exit 1, "Index not found: ${params.kallisto_index}" }
@@ -30,23 +17,38 @@ whitelist = Channel.fromPath(params.whitelist)
 
 gtf_gene_map = Channel.fromPath(params.gtf_gene_map)
 
+
+
+//channel to get the sample files for cellranger count
+sampleChannel = Channel.fromPath("${params.input_cellranger}/*.gz")
+    .ifEmpty { exit 1, "Samples not found: ${params.input_cellranger}" }
+    .map { Path path -> 
+        path.toFile()
+            .getSimpleName()                                       // this returns the name without the extension
+            .replaceAll(/_S(.*)/, '')      // this replaces the first string with something else. we need to change a part of the file name so the cellranger count can recognize the file name
+    }
+    .unique()  //this makes it so that there are no duplicate files
+
+
+
+//channel for fastqc
 samples_fastqc = Channel.fromPath("${params.input_kallisto}")
 
 
 
 
-//channel to read the sample files for kallisto bus. 
-Channel .fromFilePairs(params.input_kallisto)                                                     // the files emited are collected in pairs into a tuple. 
+//channel to read the sample files
+Channel .fromFilePairs(params.input_kallisto)                                           // the files emited are collected in pairs into a tuple. 
         .ifEmpty {exit 1, "params.input_paths was empty - no input files supplied" }
         .map {tag, pair ->                                                              // each sample occurs twice. this needs to change to 1.  a tag opperator is used to group the samples
-                subtags = (tag =~ /sample\d{1}/);                                       // first you write a pattern to match folowed by \d to specify a wild card.
+                subtags = (tag =~ /(.*)(?=_S)/);                                        // use of regex to capture anything before the _Sxx. the captured string are the sample names. the lanes and cells are removed of the file names.                                    
                 tuple ( subtags[0] ,pair )                                              //here you specify how the tuple is ordered. you put the matching string tag as the first value in the tuple
         }
-        .groupTuple(by:[0])                                                        // you then sort by tuple. you can specify by which tuple value you want to sort. because we specified in the earlier step that sample\d is the first one, it will sort by sample by default.
-        .map{sample, file ->
-                tuple(sample, file[0],file[1])
-        }
+        .transpose()                                                                    // this transforms the tuple
+        .unique()                                                                       // this is to make the same sample name as 1
+        .groupTuple(by:[0])                                                             // you then sort by tuple. you can specify by which tuple value you want to sort. because we specified in the earlier step that sample\d is the first one, it will sort by sample by default.
         .set {read_files_kallisto}
+ 
         
 
 
@@ -60,10 +62,10 @@ process kallisto_bus{
         
         tag "${name}"
 
-        publishDir "${params.outdir}/kallisto/raw_bus", mode: 'copy'
+        publishDir "${params.outdir}/kallisto/raw_bus2", mode: 'copy'
 
         input:
-        tuple val (name), file (read1), file (read2) from read_files_kallisto
+        tuple val (name), file (reads) from read_files_kallisto
         file index from kallisto_index.collect()
         
 
@@ -77,8 +79,8 @@ process kallisto_bus{
          """
          kallisto bus  -i $index \
                        --output=${name}_bus_output/ \
-                       -x '10xv2' -t ${task.cpus} \
-                       ${read1} ${read2} 2>&1 | tee ${name}_kallisto.log
+                       -x ${params.tenx_version} -t ${task.cpus} \
+                       ${reads} 2>&1 | tee ${name}_kallisto.log
         """
 }
 
@@ -146,11 +148,11 @@ process bustools_inspect{
         file inspect from sort_to_inspect
 
         output:
-        file "${inspect}.json"
+        file "${inspect}_inspect.json"
 
         script:
         """
-        bustools inspect        -o ${inspect}.json \
+        bustools inspect        -o ${inspect}_inspect.json \
                                 ${inspect}/output.corrected.sorted.bus
         """
 }
@@ -306,7 +308,7 @@ process cellranger_seurat_object {
 
     script:
     """
-    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/cellranger_object_base_argparse.r  ${sample_name} 
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_object_full.r  ${sample_name} cellranger
     """
 
 }
@@ -324,7 +326,7 @@ process count_seurat_object {
 
     script:
     """
-    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_kallisto_count.r   ${bus} 
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_object_full.r  ${bus} kallisto_tcc
     
     """
 
@@ -343,7 +345,7 @@ process genecount_seurat_object {
     script:
     """
     
-    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_kallisto_genecount.r   ${bus2}
+    Rscript /home/histogenex/Pipelines/Nextflow/scRNAseq/seurat_object_full.r   ${bus2} kallisto_gene
     """
 
 }
