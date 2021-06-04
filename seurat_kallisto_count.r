@@ -10,10 +10,14 @@ args = commandArgs(trailingOnly=TRUE)
 
 sample<- args[1]
 
-#reading file and creating seurat object
+#reading file 
 res_mat <- read_count_output(".", name = "tcc", tcc = TRUE)
+#rename "sample" to create better filenames
+renamed <- gsub( "_bus_output", "", sample)
+#creating seurat object
+seu <- CreateSeuratObject(res_mat, min.cells = 3, min.feature=200, project = renamed)
 
-seu <- CreateSeuratObject(res_mat, min.cells = 3, min.feature=200)
 
-saveRDS(res_mat, paste0(sample, "_seurat.rds"))
+#save seurat obj into a .rds file
+saveRDS(seu, paste0(renamed, "_kallisto_seurat.rds"))
 
