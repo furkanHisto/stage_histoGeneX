@@ -1,0 +1,408 @@
+---
+title: "Seurat object analysis"
+output: html_notebook
+---
+
+
+In this notebook the analysis on the Seurat object of the samples is performed.  
+The pipeline creates Seurat objects of the samples.  
+These samples, and the needed r packages, are loaded.
+
+```{r}
+#loading and installing packages
+library(SingleR)
+library(Seurat)
+library(dplyr)
+library(ggsci)
+library(DoubletFinder)
+library(SeuratData)
+library(patchwork)
+library(ggplot2)
+library(celldex)
+
+#setting the path to the right dir
+setwd("~/seurat_analysis")
+#loading object files
+
+GEM_sample1_cellranger <- readRDS("GEM_sample1_cellranger_seurat.rds")
+GEM_sample2_cellranger <- readRDS("GEM_sample2_cellranger_seurat.rds")
+GEM_sample3_cellranger <- readRDS("GEM_sample3_cellranger_seurat.rds")
+GEM_sample4_cellranger <- readRDS("GEM_sample4_cellranger_seurat.rds")
+
+```
+
+# Doublet detection
+Detection of scRNA works with droplets. There can be a chance that multiple cells are in 1 droplet. This means that some droplets can give information of multiple cells. This is called a doublet detection and these needs to be filtered out before performing the following steps. Samples have to be preprocessed (normalize the data, finding the variable genes, scale the data, run PCA and UMAP) before a doublet detection can be performed.
+
+```{r}
+#preprocessing of sample 1
+GEM_sample1_filtered = FindVariableFeatures(GEM_sample1_cellranger, verbose = F)
+GEM_sample1_filtered = PercentageFeatureSet(GEM_sample1_filtered, "^MT-", col.name = "percent_mito")
+GEM_sample1_filtered = ScaleData(GEM_sample1_filtered, vars.to.regress = c("nFeature_RNA", "percent_mito"), 
+    verbose = F)
+GEM_sample1_filtered = RunPCA(GEM_sample1_filtered, verbose = F, npcs = 20)
+GEM_sample1_filtered = RunUMAP(GEM_sample1_filtered, dims = 1:10, verbose = F)
+GEM_sample1_filtered <-  NormalizeData(GEM_sample1_filtered)
+```
+
+To run the doubletFinder_V3 function, paramSweep_V3 needs to be run. This calculates the best pK value to use in the doubletFinder_V3 function. To calculate nExp the doublet rate estimation is needed. This can be determined using the doublet rate estimation table. In my samples 5000 cells were load so I use 0.023 to calculate nExp.
+
+```{r}
+
+# use paramSweep to define best parameters (pK value) for doublet finder. make barplot to better visualize the mean-variance-normalized bimodality coefficient (BCmvn) per pK value.
+sweep.res <- paramSweep_v3(GEM_sample1_filtered) 
+sweep.stats <- summarizeSweep(sweep.res, GT = FALSE) 
+bcmvn <- find.pK(sweep.stats) 
+barplot(bcmvn$BCmetric, names.arg = bcmvn$pK, las=2)
+ 
+#calculate expected number of doublets. doublet rate estimation table is used to calculate nEXP value. 
+nExp <- round(ncol(GEM_sample1_filtered) * 0.023) 
+GEM_sample1_filtered <- doubletFinder_v3(GEM_sample1_filtered, pN = 0.25, pK = 0.24, nExp = nExp, PCs = 1:10)
+```
+
+
+DoubletFinder is also performed on the other samples.
+
+```{r}
+
+#sample2
+GEM_sample2_filtered = FindVariableFeatures(GEM_sample2_cellranger, verbose = F)
+GEM_sample2_filtered = PercentageFeatureSet(GEM_sample2_filtered, "^MT-", col.name = "percent_mito")
+GEM_sample2_filtered = ScaleData(GEM_sample2_filtered, vars.to.regress = c("nFeature_RNA", "percent_mito"), 
+    verbose = F)
+GEM_sample2_filtered = RunPCA(GEM_sample2_filtered, verbose = F, npcs = 20)
+GEM_sample2_filtered = RunUMAP(GEM_sample2_filtered, dims = 1:10, verbose = F)
+GEM_sample2_filtered =  NormalizeData(GEM_sample2_filtered)
+
+sweep.res2 <- paramSweep_v3(GEM_sample2_filtered) 
+sweep.stats2 <- summarizeSweep(sweep.res2, GT = FALSE) 
+bcmvn2 <- find.pK(sweep.stats2) 
+barplot(bcmvn2$BCmetric, names.arg = bcmvn2$pK, las=2)
+
+nExp2 <- round(ncol(GEM_sample2_filtered) * 0.023)  
+GEM_sample2_filtered <- doubletFinder_v3(GEM_sample2_filtered, pN = 0.25, pK = 0.08, nExp = nExp2, PCs = 1:10)
+
+#sample3
+GEM_sample3_filtered = FindVariableFeatures(GEM_sample3_cellranger, verbose = F)
+GEM_sample3_filtered = PercentageFeatureSet(GEM_sample3_filtered, "^MT-", col.name = "percent_mito")
+GEM_sample3_filtered = ScaleData(GEM_sample3_filtered, vars.to.regress = c("nFeature_RNA", "percent_mito"), 
+    verbose = F)
+GEM_sample3_filtered = RunPCA(GEM_sample3_filtered, verbose = F, npcs =20)
+GEM_sample3_filtered = RunUMAP(GEM_sample3_filtered, dims = 1:10, verbose = F)
+GEM_sample3_filtered =  NormalizeData(GEM_sample3_filtered)
+
+sweep.res3 <- paramSweep_v3(GEM_sample3_filtered) 
+sweep.stats3 <- summarizeSweep(sweep.res3, GT = FALSE) 
+bcmvn3 <- find.pK(sweep.stats3) 
+barplot(bcmvn3$BCmetric, names.arg = bcmvn3$pK, las=2)
+
+nExp3 <- round(ncol(GEM_sample3_filtered) * 0.023)  
+GEM_sample3_filtered <- doubletFinder_v3(GEM_sample3_filtered, pN = 0.25, pK = 0.005, nExp = nExp3, PCs = 1:10)
+
+#sample4
+GEM_sample4_filtered = FindVariableFeatures(GEM_sample4_cellranger, verbose = F)
+GEM_sample4_filtered = PercentageFeatureSet(GEM_sample4_filtered, "^MT-", col.name = "percent_mito")
+GEM_sample4_filtered = ScaleData(GEM_sample4_filtered, vars.to.regress = c("nFeature_RNA", "percent_mito"), 
+    verbose = F)
+GEM_sample4_filtered = RunPCA(GEM_sample4_filtered, verbose = F, npcs =20)
+GEM_sample4_filtered = RunUMAP(GEM_sample4_filtered, dims = 1:10, verbose = F)
+GEM_sample4_filtered =  NormalizeData(GEM_sample4_filtered)
+
+sweep.res4 <- paramSweep_v3(GEM_sample4_filtered) 
+sweep.stats4 <- summarizeSweep(sweep.res4, GT = FALSE) 
+bcmvn4 <- find.pK(sweep.stats4) 
+barplot(bcmvn4$BCmetric, names.arg = bcmvn4$pK, las=2)
+
+nExp4 <- round(ncol(GEM_sample4_filtered) * 0.023)
+GEM_sample4_filtered <- doubletFinder_v3(GEM_sample4_filtered, pN = 0.25, pK = 0.3, nExp = nExp2, PCs = 1:10)
+
+
+### removal of the bcmvn objects
+rm(bcmvn, bcmvn2, bcmvn3, bcmvn4)
+
+```
+
+Remove the doublets from the metadata.
+
+```{r}
+#use subset to remove all the doublets from the metadata
+#sample1
+GEM_sample1_clean <- subset(GEM_sample1_filtered, cells = rownames (GEM_sample1_filtered@meta.data) [which(GEM_sample1_filtered@meta.data$DF.classification == "Singlet")])
+#sample2
+GEM_sample2_clean <- subset(GEM_sample2_filtered, cells = rownames (GEM_sample2_filtered@meta.data)[which(GEM_sample2_filtered@meta.data$DF.classification == "Singlet")])
+#sample3
+GEM_sample3_clean <- subset(GEM_sample3_filtered, cells = rownames (GEM_sample3_filtered@meta.data)[which(GEM_sample3_filtered@meta.data$DF.classification == "Singlet")])
+#sample4
+GEM_sample4_clean <- subset(GEM_sample4_filtered, cells = rownames (GEM_sample4_filtered@meta.data)[which(GEM_sample4_filtered@meta.data$DF.classification == "Singlet")])
+
+#remove redundant objects
+rm (sweep.res, sweep.res2, sweep.res3, sweep.res4, sweep.stats, sweep.stats2, sweep.stats3, sweep.stats4)
+gc()
+```
+
+
+Merge all the cellranger seurat objects into 1 object.
+
+```{r}
+# merging all the seurat objects into 1 object
+alldata <- merge(GEM_sample1_clean, c(GEM_sample2_clean,GEM_sample3_clean, GEM_sample4_clean))
+
+#removing the sample objects that are not needed anymore
+rm ( GEM_sample1_cellranger, GEM_sample1_count_kallisto, GEM_sample1_genecount_kallisto, GEM_sample2_cellranger, GEM_sample2_count_kallisto, GEM_sample2_genecount_kallisto, GEM_sample3_cellranger, GEM_sample3_count_kallisto, GEM_sample3_genecount_kallisto, GEM_sample4_cellranger, GEM_sample4_count_kallisto, GEM_sample4_genecount_kallisto)
+
+rm (GEM_sample1_filtered, GEM_sample2_filtered, GEM_sample3_filtered, GEM_sample4_filtered, GEM_sample1_clean, GEM_sample2_clean, GEM_sample3_clean, GEM_sample4_clean,)
+
+#running garbage collect to free up memory
+gc()
+
+```
+
+
+# Calculating percentage of features
+
+Calculating the percentage mitochondrial and ribosomal genes per cell and adding it to the metadata. This is done because low-quality or dying cells have high mitochondrial contamination. The percentage of hemoglobin and platelets is calculated to see if there is blood contamination.
+These can be filtered out. 
+The PercentageFeatureSet() function is used to calculate the percentages.
+
+```{r}
+alldata <- PercentageFeatureSet(alldata, "^MT-", col.name = "percent_mito")
+alldata <- PercentageFeatureSet(alldata, "^RP[SL]", col.name = "percent_ribo")
+alldata <- PercentageFeatureSet(alldata, "^HB[^(P)]", col.name = "percent_hb")
+alldata <- PercentageFeatureSet(alldata, "PECAM1|PF4", col.name = "percent_plat")
+```
+
+# Making violin plot
+A violin plot and a scatterplot is created to visualize the data.
+```{r}
+#naming the features/ naming the graphs
+feats <- c("nFeature_RNA", "nCount_RNA", "percent_mito", "percent_ribo","percent_hb")
+
+#violinplot of alldata
+VlnPlot(alldata, group.by = "orig.ident", features = feats, pt.size = 0.1, ncol = 3) + 
+    NoLegend()
+
+#scatterplot of alldata. plot 1 shows relation of nCount_RNA with nfeature_RNA
+plot1 <-FeatureScatter(alldata, "nCount_RNA", "nFeature_RNA", group.by = "orig.ident", pt.size = 0.5)+ NoLegend()
+
+#plot 2 shows relation of nCount_RNA with percent_mito
+plot2 <- FeatureScatter(alldata, "nCount_RNA", "percent_mito", group.by = "orig.ident", pt.size = 0.5)+ NoLegend()
+
+#plot 3 shows relation of nFeature_RNA and percent_mito
+plot3 <- FeatureScatter(alldata, "nFeature_RNA", "percent_mito", group.by = "orig.ident", pt.size = 0.5) + NoLegend()
+
+#graph of the 3 scatterplots
+plot1 + plot2 +plot3
+
+#violinplot of the percent_mito feature
+VlnPlot(alldata, group.by = "orig.ident", features = "percent_mito", pt.size = 0.1, ncol = 1) + 
+    NoLegend()
+```
+
+It seems that roughly 40% of the transcripts are derived from ribosomal genes and roughly 10% from mitochondrial. 
+
+
+A plot is created to visualize the total count of the top 10 genes per cell.
+
+```{r}
+par(mar = c(4, 8, 2, 1))
+C <- alldata@assays$RNA@counts
+C <- Matrix::t(Matrix::t(C)/Matrix::colSums(C)) * 100
+most_expressed <- order(apply(C, 1, median), decreasing = T)[20:1]
+boxplot(as.matrix(t(C[most_expressed, ])), cex = 0.1, las = 1, xlab = "% total count per cell", 
+    col = (scales::hue_pal())(20)[20:1], horizontal = TRUE) 
+
+```
+
+
+# Filtering percent_mito and percent_ribo
+  
+A cuttoff point has to be chosen to filter out low quality cells. This can be done by using a fixed threshold. By assessing the violin plot, we filter out all cells that have more than 10% mitochondrial counts and have more than 5% ribosomal count. 
+
+```{r}
+#select cells with these amount of mito and ribo
+selected_mito <- WhichCells(alldata, expression = percent_mito < 10)
+selected_ribo <- WhichCells(alldata, expression = percent_ribo > 5)
+
+#subset these from the full object
+alldata_filtered <- subset(alldata, cells = selected_mito)
+alldata_filtered <- subset(alldata_filtered, cells = selected_ribo)
+
+
+#violinplot of alldata
+VlnPlot(alldata_filtered, group.by = "orig.ident", features = feats, pt.size = 0.1, ncol = 3) + 
+    NoLegend()
+
+#scatterplot of filtered data that shows relation of percetn_mito and nCount_RNA
+FeatureScatter(alldata_filtered, "nCount_RNA", "percent_mito", group.by = "orig.ident", pt.size = 0.5)
+
+```
+
+# Normalize the data
+The next step is to normalize the data. This is done with the NormalizeData() function.
+
+```{r}
+alldata_filtered <- NormalizeData(alldata_filtered)
+```
+
+# Gene variance
+Identify and calculate subset of high cell-to-cell variable genes/features. 
+
+```{r}
+#find all the variable genes
+alldata_filtered <- FindVariableFeatures(alldata_filtered, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(alldata_filtered), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(alldata_filtered)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot2
+```
+
+The top 10 genes that shows the highest variance are labeled on the graph.
+
+# Cell-cycle score
+
+To mitigate the effects of cell cycle heterogeneity, cell cycle phases are scored and filtered out. The scoring is based on the expression of the markers of the G2/M and S phase of the cell. A list of the markers are build in in Seurat (cc.genes$s.genes/g2m.genes). Seurat has a function, CellCycleScoring(), to calculate this score. A violin plot is made based on this score.
+The data is scaled after calculating the score. This is done because highly expressed genes shows the highest variance. The data needs to be scaled so that it scales variation with expression level. 
+
+```{r}
+#cc.genes$g2m.genes and cc.genes$s.genes are a list of the markers.
+alldata_filtered <- CellCycleScoring(object = alldata_filtered, g2m.features = cc.genes$g2m.genes, s.features = cc.genes$s.genes, set.ident = TRUE)
+
+#scale the data
+alldata_filtered <- ScaleData(alldata_filtered, features = rownames(alldata_filtered))
+
+#running PCA on the data 
+alldata_filtered <- RunPCA(alldata_filtered, features = VariableFeatures(alldata_filtered))
+
+# creating violin plot based on the cell cycle score
+VlnPlot(alldata_filtered, features = c("S.Score", "G2M.Score"), group.by = "orig.ident", 
+    ncol = 2, pt.size = 0.1)
+
+# Dim plot of the PCA colored by cell cycle phase
+DimPlot(alldata_filtered, reduction = "pca", group.by= "Phase", split.by = "Phase")
+```
+
+The plot shows that there is no significant difference in expression based on the cell cycle. Regression of the variation is not needed for these samples.
+
+Save the data so if a prblems occurs, you dont need to rerun these steps.
+
+```{r}
+#save data
+saveRDS(alldata_filtered, "~/alldata_filtered2")
+
+#load data
+alldata_filtered <-readRDS("alldata_filtered2")
+```
+
+
+# Linear dimensional reduction
+
+A PCA is performed with the determined variable features as input. To visualize it a heatmap is created.
+
+```{r}
+#running PCA on data
+alldata_filtered <- RunPCA(alldata_filtered, features = VariableFeatures(object = alldata_filtered))
+
+# Examine and visualize PCA results a few different ways
+print(alldata_filtered[["pca"]], dims = 1:5, nfeatures = 5)
+
+#creating heatmap
+DimHeatmap(alldata_filtered, dims = 1:6, cells = 500, balanced = TRUE)
+
+```
+
+With the heatmap you can determine the primary source of heterogeneity in a dataset. The cells and features are ordered according to their PCA score.
+
+# Finding clusters
+the clustering is based on the method that embeds the data in a K-nearest neighbor graph. The graph is constructed based on the euclidean distance in PCA space and it refines the edge weights of 2 cells based on their shared overlap in their neighbors. This is done using FindNeighbors() function. then the cells are clustered using FindClusters() function.
+The resolution sets the granularity of downstream clusters. resolution between 0.4 and 1.4 is good for this dataset. We will work with resolution 0.8. 
+
+```{r}
+#first the neighbors then the clusters are calculated
+alldata_filtered <- FindNeighbors(alldata_filtered, dims = 1:10)
+ 
+
+#choosing resolution 0.8 to form clusters
+alldata_filtered <- FindClusters(alldata_filtered, resolution = 0.8)
+
+```
+
+# Non-linear dimensional reduction
+
+2 dimensional reductions, tSNE and UMAP, will be performed on the dataset. This will group similar cells in clusters.
+
+```{r}
+# running UMAP on dataset
+alldata_filtered<- RunUMAP(alldata_filtered, dims = 1:10)
+
+#creating dimplot
+DimPlot(alldata_filtered, reduction = "umap", label = TRUE ,label.size = 6)
+
+#running tSNE on dataset
+alldata_filtered <- RunTSNE(alldata_filtered, dims = 1:10)
+DimPlot(alldata_filtered, reduction = "tsne")
+
+
+#save and load object file
+saveRDS(alldata_filtered, "~/alldata_filtered_afterUMAP")
+alldata_filtered <- readRDS("alldata_filtered_afterUMAP")
+
+
+```
+
+# Cell type recognition
+
+The cell type is not defined in the object. If we determine the markers per cluster now, it will name each cluster by number. To name each cluster the cell type has to be defined. To define the cell type we use the SingleR() funtion. SingleR() will leverage each cell to a reference to determine its type.
+
+```{r}
+#load reference data
+hpca.se <- HumanPrimaryCellAtlasData()
+hpca.se
+
+#get normalized count from Seurat object
+sR_alldata <- GetAssayData(alldata_filtered)
+
+#perfrom SingleR to label markers with cell type
+com.res1 <- SingleR(sR_alldata, ref=hpca.se, labels=hpca.se$label.main, assay.type.test=1)
+# add the labels from SingleR to the metadata of Seurat object
+alldata_filtered[["SingleR.labels"]] <- com.res1$labels
+
+```
+
+
+
+# Finding markers
+
+Identifying the markers can help define the clusters. with the FindAllMarkers() funtion all markers will be identified. With the min.pct argument only features, with a minimum of the defined percentage value detected in both clusters, will be accounted for. 
+
+```{r}
+#finding all positive markers for each cluster
+alldata_filtered2.markers <- FindAllMarkers(alldata_filtered2, only.pos = TRUE, min.pct =  0.25, logfc.threshold = 0.25)
+
+```
+
+A heatmap of the clusters plotted against the markers. 
+
+```{r}
+top14 <- alldata_filtered.markers %>%
+    group_by(cluster) %>%
+    top_n(n = 4, wt = avg_log2FC)
+DoHeatmap(alldata_filtered, features = top14$gene) + NoLegend()
+```
+
+
+# Naming the clusters
+
+The markers can be matched to cell types. these then can be projected on the graph to see which cell type each cluster is. The clusters are grouped by the cell type.
+
+```{r}
+#create dimplot of the clusters
+DimPlot(alldata_filtered, reduction = "umap", group.by = "SingleR.labels", cols= DiscretePalette(n=12, palette = "polychrome"), label = TRUE,   pt.size = 0.5) 
+
+```
+
+
+
