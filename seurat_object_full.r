@@ -7,7 +7,8 @@ library(Seurat)
 # to gather the input files from the channel. 
 #with make option you can write a shebang script on the file. we use this to gather the files emitted from the channel and run the script on it
 args = commandArgs(trailingOnly=TRUE)
-sample<- args[1]
+sample<- args[1]  
+
 
 #adding second argument to specify which process it is
 process_specified <- args[2]
